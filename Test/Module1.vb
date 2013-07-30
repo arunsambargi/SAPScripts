@@ -6,22 +6,14 @@ Module Module1
 
     Sub Main()
 
-        'Dim S As String = "hmetal34"
-        'Dim A As String = ""
-        'Dim N As String = ""
-        'For Each C As Char In S.ToCharArray
-        '    If IsNumeric(C) Then
-        '        N = N & C
-        '    Else
-        '        A = A & C
-        '    End If
-        'Next
-        'N = CStr(Val(N) + 1)
-        'S = A & N
+        'Dim SAPApp = CreateObject("Sapgui.ScriptingCtrl.1")
+        'Dim Connection = SAPApp.OpenConnectionByConnectionString("/R/N6P/G/SPACE/M/N6P.na.pg.com")
+        'Dim Session = Connection.Children(0)
 
-        Dim Session As New SAPGUI("N6A", "BV7795", "114116")
+        Dim Session As New SAPGUI("L6P", "AR4041", "hmetal25")
 
-
+        Dim b = Session.LoggedIn
+        Session.Close()
         Dim T As Object = Session.FindById("GRID")
         Dim I As Integer = 0
         For Each Row As Object In T.Rows

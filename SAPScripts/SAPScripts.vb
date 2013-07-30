@@ -6,6 +6,7 @@ Public Class SAPGUI
     Private SAPApp As Object = Nothing
     Private Connection As Object = Nothing
     Private Session As Object = Nothing
+    Private Servers As New DataTable
 
     Private LI As Boolean = False
 
@@ -36,14 +37,33 @@ Public Class SAPGUI
 
     End Property
 
-    Public Sub New(ByVal Box As String)
+    Public Sub New(ByVal Box As String, Optional ByVal User As String = Nothing, Optional ByVal Password As String = Nothing, Optional ByRef NewPass As String = Nothing)
 
         Try
             Enable_GUI_Theme()
             SAPApp = CreateObject("Sapgui.ScriptingCtrl.1")
-            Connection = SAPApp.OpenConnection(GetSSOConnString(Box), True)
+            If User Is Nothing Or Password Is Nothing Then
+                Connection = SAPApp.OpenConnection(GetSSOConnString(Box), True)
+            Else
+                Connection = SAPApp.OpenConnectionByConnectionString(GetConnString(Box))
+            End If
             Session = Connection.Children(0)
+            If Not User Is Nothing And Not Password Is Nothing Then
+                Session.findById("wnd[0]/usr/txtRSYST-BNAME").Text = User
+                Session.findById("wnd[0]/usr/pwdRSYST-BCODE").Text = Password
+                Session.findById("wnd[0]").sendVKey(0)
+            End If
             Do While Not Session.findById("wnd[1]", False) Is Nothing
+                If Not Session.findById("wnd[1]/usr/pwdRSYST-NCODE", False) Is Nothing Then
+                    If Not NewPass Is Nothing Then
+                        Session.findById("wnd[1]/usr/pwdRSYST-NCODE").Text = NewPass
+                        Session.findById("wnd[1]/usr/pwdRSYST-NCOD2").Text = NewPass
+                        Session.findById("wnd[1]/tbar[0]/btn[0]").Press()
+                    Else
+                        Session.findById("wnd[1]/tbar[0]/btn[12]").Press()
+                        Exit Sub
+                    End If
+                End If
                 If Session.ActiveWindow.Text = "SAP" Then
                     Session.findById("wnd[1]/tbar[0]/btn[12]").Press()
                     Exit Sub
@@ -64,64 +84,6 @@ Public Class SAPGUI
             If Session.ActiveWindow.Text Like "SAP Easy Access*" Then
                 LI = True
             End If
-        Catch ex As Exception
-
-        End Try
-
-    End Sub
-
-    Public Sub New(ByVal Box As String, ByVal User As String, ByVal Password As String, Optional ByRef NewPass As String = Nothing)
-
-        Dim CS As String = GetConnString(Box)
-
-        Try
-            Enable_GUI_Theme()
-            SAPApp = CreateObject("Sapgui.ScriptingCtrl.1")
-            Connection = SAPApp.OpenConnectionByConnectionString(CS)
-            Session = Connection.Children(0)
-            Session.findById("wnd[0]/usr/txtRSYST-BNAME").Text = User
-            Session.findById("wnd[0]/usr/pwdRSYST-BCODE").Text = Password
-            Session.findById("wnd[0]").sendVKey(0)
-
-            If Not Session.findById("wnd[1]/usr/txtMULTI_LOGON_TEXT", False) Is Nothing Then
-                If Not Session.findById("wnd[1]/usr/radMULTI_LOGON_OPT2", False) Is Nothing Then
-                    Session.findById("wnd[1]/usr/radMULTI_LOGON_OPT2").Select()
-                Else
-                    Session.findById("wnd[1]/usr/radMULTI_LOGON_OPT1").Select()
-                End If
-                Session.findById("wnd[1]").sendVKey(0)
-            End If
-
-            If Not Session.findById("wnd[1]/usr/pwdRSYST-NCODE", False) Is Nothing Then
-                If Not NewPass Is Nothing Then
-                    Session.findById("wnd[1]/usr/pwdRSYST-NCODE").Text = NewPass
-                    Session.findById("wnd[1]/usr/pwdRSYST-NCOD2").Text = NewPass
-                    Session.findById("wnd[1]/tbar[0]/btn[0]").Press()
-                Else
-                    Session.findById("wnd[1]/tbar[0]/btn[12]").Press()
-                    Exit Sub
-                End If
-            Else
-                If Not NewPass Is Nothing Then NewPass = Nothing
-            End If
-
-            If Not Session.findById("wnd[1]/usr/txtMULTI_LOGON_TEXT", False) Is Nothing Then
-                If Not Session.findById("wnd[1]/usr/radMULTI_LOGON_OPT2", False) Is Nothing Then
-                    Session.findById("wnd[1]/usr/radMULTI_LOGON_OPT2").Select()
-                Else
-                    Session.findById("wnd[1]/usr/radMULTI_LOGON_OPT1").Select()
-                End If
-                Session.findById("wnd[1]").sendVKey(0)
-            End If
-
-            Do While Not Session.findById("wnd[1]/tbar[0]/btn[0]", False) Is Nothing
-                Session.findById("wnd[1]/tbar[0]/btn[0]").Press()
-            Loop
-
-            If Session.ActiveWindow.Text Like "SAP Easy Access*" Then
-                LI = True
-            End If
-
         Catch ex As Exception
 
         End Try
@@ -241,8 +203,13 @@ Public Class SAPGUI
 
     Public Function GetConnString(ByVal Box As String) As String
 
-        Dim R As String = "/R/*/G/SPACE"
-        GetConnString = R.Replace("*", Box)
+        GetConnString = Nothing
+        Servers.ReadXml(New IO.StringReader(My.Resources.Servers))
+        Dim FR As DataRow() = Servers.Select("Box = '" & Box & "'")
+        If FR.Count > 0 Then
+            Dim R As String = "/R/*/G/" & FR(0)("LogonGroup") & "/M/" & FR(0)("MessageServer")
+            GetConnString = R.Replace("*", Box)
+        End If
 
     End Function
 
