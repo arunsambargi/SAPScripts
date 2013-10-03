@@ -1634,3 +1634,141 @@ Public Class OA_Item_New_Validity
     End Sub
 
 End Class
+
+Public Class Credits_Link
+
+    Private Box As String
+    Private User As String
+    Private Password As String
+
+    Public Sub New(_Box As String, _User As String, _Password As String)
+
+        Box = _Box
+        User = _User
+        Password = _Password
+
+    End Sub
+
+    Public Sub Execute(Vendor As String, LE As String, Credits As List(Of String), Invoices As List(Of String), PTerm As String)
+
+        Dim Session As New SAPGUI(Box, User, Password)
+        Dim Invoice_Link As String = Nothing
+
+        If Not Session.LoggedIn Then
+            MsgBox("Failed to connect to SAP - " & Box, MsgBoxStyle.Critical, "Link Script")
+            Exit Sub
+        End If
+
+        Dim CI As String
+
+        If Credits.Count > 1 Or Invoices.Count > 1 Then
+            Session.StartTransaction("XK03")
+            Session.FindByNameEx("RF02K-LIFNR", 32).Text = Vendor
+            Session.FindByNameEx("RF02K-BUKRS", 32).Text = LE
+            Session.FindByNameEx("RF02K-D0215", 42).Selected = True
+            Session.SendVKey(0)
+            If Session.FindByNameEx("LFB1-XPORE", 42).Selected Then
+                MsgBox("This vendor is flagged for Individual Payments! Process Aborted.", MsgBoxStyle.Critical, "Vendor Check")
+                Session.Close()
+                Exit Sub
+            End If
+        End If
+
+        Session.StartTransaction("FBL1")
+        Session.FindByNameEx("KD_LIFNR-LOW", 32).Text = Vendor
+        Session.FindByNameEx("KD_BUKRS-LOW", 32).Text = LE
+        Session.FindByNameEx("PA_VARI", 32).Text = "/LINKING"
+        Session.FindById("wnd[0]/tbar[1]/btn[8]").Press()
+
+        For Each Invoice As String In Invoices
+            CI = GUI_Find(Session, Invoice)
+            If Session.FindById("wnd[0]/usr/lbl[65,%]".Replace("%", CI)).Text <> "" Then
+                MsgBox("Invoice " & Invoice & " is currently blocked! Process Aborted.", MsgBoxStyle.Critical, "Invoices Verification")
+                Session.Close()
+                Exit Sub
+            End If
+        Next
+
+        For Each Credit As String In Credits
+            CI = GUI_Find(Session, Credit)
+            If Session.FindById("wnd[0]/usr/lbl[65,%]".Replace("%", CI)).Text <> "" Then
+                MsgBox("Credit " & Credit & " is currently blocked! Process Aborted.", MsgBoxStyle.Critical, "Credits Verification")
+                Session.Close()
+                Exit Sub
+            End If
+        Next
+
+        If Invoices.Count > 1 Then
+            Dim TA As Integer
+            Dim AG As Integer = 10000
+            For Each Invoice As String In Invoices
+                CI = GUI_Find(Session, Invoice)
+                TA = CInt(Session.FindById("wnd[0]/usr/lbl[42,%]".Replace("%", CI)).Text)
+                If TA < 0 Then TA = TA * -1
+                If TA < AG Then
+                    Invoice_Link = Invoice
+                    AG = TA
+                End If
+            Next
+            For Each Invoice As String In Invoices
+                If Invoice <> Invoice_Link Then
+                    CI = GUI_Find(Session, Invoice)
+                    Session.SendVKey(2)
+                    Session.FindById("wnd[0]/tbar[1]/btn[13]").Press()
+                    'Session.FindByNameEx("BSEG-ZBFIX", 32).Text = Fixed(PTerm)
+                    Session.FindByNameEx("BSEG-REBZG", 31).Text = Invoice_Link
+                    Session.FindByNameEx("BSEG-SGTXT", 32).Text = Session.FindByNameEx("BSEG-SGTXT", 32).Text & " / 02DB"
+                    Session.SendVKey(0)
+                    Session.FindById("wnd[0]/tbar[0]/btn[11]").Press() '**** --> Save <--- *****
+                    Session.SendVKey(0)
+                End If
+            Next
+        Else
+            Invoice_Link = Invoices(0)
+        End If
+
+        For Each Credit As String In Credits
+            CI = GUI_Find(Session, Credit)
+            Session.SendVKey(2)
+            Session.FindById("wnd[0]/tbar[1]/btn[13]").Press()
+            'Session.FindByNameEx("BSEG-ZBFIX", 32).Text = Fixed(PTerm)
+            Session.FindByNameEx("BSEG-REBZG", 31).Text = Invoice_Link
+            Session.FindByNameEx("BSEG-SGTXT", 32).Text = Session.FindByNameEx("BSEG-SGTXT", 32).Text & " /02DB"
+            Session.SendVKey(0)
+            Session.FindById("wnd[0]/tbar[0]/btn[11]").Press() '**** --> Save <--- *****
+            Session.SendVKey(0)
+        Next
+
+        Session.Close()
+
+    End Sub
+
+    Private Function GUI_Find(Session As SAPGUI, Reference As String) As String
+
+        GUI_Find = Nothing
+
+        Session.SendVKey(71)
+        Session.FindById("wnd[1]/usr/chkSCAN_STRING-START").selected = False
+        Session.FindById("wnd[1]/usr/txtRSYSF-STRING").text = Reference
+        Session.FindById("wnd[1]/tbar[0]/btn[0]").press()
+        If Session.FindById("wnd[2]").text = "Information" Then
+            Exit Function
+        End If
+        Session.FindById("wnd[2]/usr").horizontalScrollbar.position = 127
+        If Session.FindById("wnd[2]/usr/lbl[7,2]") Is Nothing OrElse Session.FindById("wnd[2]/usr/lbl[7,2]").Text <> Reference Then
+            Exit Function
+        End If
+        Session.FindById("wnd[2]/usr/lbl[7,2]").setFocus()
+        Session.FindById("wnd[2]").sendVKey(2)
+
+        GUI_Find = Session.ActiveWindow.SystemFocus.ID.Substring(Session.ActiveWindow.SystemFocus.ID.IndexOf(",") + 1).TrimEnd("]")
+
+    End Function
+
+    Private Function Fixed(PTerm As String) As String
+
+        Fixed = ""
+
+    End Function
+
+End Class
