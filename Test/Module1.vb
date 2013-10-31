@@ -6,7 +6,8 @@ Module Module1
 
     Sub Main()
 
-
+        Dim Session As New SAPGUI("GBP")
+        Session.Close()
 
     End Sub
 

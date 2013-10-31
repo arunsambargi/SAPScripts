@@ -37,6 +37,14 @@ Public Class SAPGUI
 
     End Property
 
+    Public ReadOnly Property SAP_Session_Obj As Object
+
+        Get
+            SAP_Session_Obj = Session
+        End Get
+
+    End Property
+
     Public Sub New(ByVal Box As String, Optional ByVal User As String = Nothing, Optional ByVal Password As String = Nothing, Optional ByRef NewPass As String = Nothing)
 
         Try
@@ -267,6 +275,8 @@ Public Class SAPGUI
         Select Case Box
             Case "L6A"
                 GetSSOConnString = "L6A LA SC Acc - SSO"
+            Case "L7A"
+                GetSSOConnString = "L7A TS Acceptance - SSO"
             Case "L6P"
                 GetSSOConnString = "L6P LA SC  Prod - SSO"
             Case "N6P"
@@ -279,6 +289,10 @@ Public Class SAPGUI
                 GetSSOConnString = "ANP NEA Prod(JP) - SSO"
             Case "A6P"
                 GetSSOConnString = "A6P SC Prod(EN) - SSO"
+            Case "GBP"
+                GetSSOConnString = "GBP GCM Production- SSO"
+            Case "G4P"
+                GetSSOConnString = "G4P GCF/Cons Prod- SSO"
         End Select
 
     End Function
