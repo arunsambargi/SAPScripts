@@ -146,6 +146,21 @@ Public Class SAPGUI
 
     End Function
 
+    Public Function FindByText(Search As String) As Object
+
+        FindByText = Nothing
+        Try
+            For Each Children As Object In Session.findbyid("wnd[0]/usr/").children
+                If Children.Text = Search Then
+                    FindByText = Children
+                    Exit For
+                End If
+            Next
+        Catch ex As Exception
+        End Try
+
+    End Function
+
     Public Function ActiveWindow() As Object
 
         ActiveWindow = Session.ActiveWindow
@@ -1649,11 +1664,14 @@ Public Class OA_Item_New_Validity
 
 End Class
 
-Public Class Credits_Link
+Public Class Credits_ST100_Scripting
 
     Private Box As String
     Private User As String
     Private Password As String
+    Private CI As String
+    Private PBk_I As String
+    Private Amt_I As String
 
     Public Sub New(_Box As String, _User As String, _Password As String)
 
@@ -1663,17 +1681,27 @@ Public Class Credits_Link
 
     End Sub
 
-    Public Sub Execute(Vendor As String, LE As String, Credits As List(Of String), Invoices As List(Of String), PTerm As String)
+    Public Sub Execute(Script As Byte, Invoices As List(Of String), Vendor As String, LE As String, Fixed As String, Optional Credits As List(Of String) = Nothing)
+
+        Select Case Script
+            Case 1
+                Link(Invoices, Credits, Vendor, LE, Fixed)
+            Case 2
+                Togle_Block(Invoices, Vendor, LE, Fixed)
+        End Select
+
+    End Sub
+
+    Private Sub Link(Invoices As List(Of String), Credits As List(Of String), Vendor As String, LE As String, Fixed As String)
 
         Dim Session As New SAPGUI(Box, User, Password)
         Dim Invoice_Link As String = Nothing
+        Dim BkFlag As String = Nothing
 
         If Not Session.LoggedIn Then
             MsgBox("Failed to connect to SAP - " & Box, MsgBoxStyle.Critical, "Link Script")
             Exit Sub
         End If
-
-        Dim CI As String
 
         If Credits.Count > 1 Or Invoices.Count > 1 Then
             Session.StartTransaction("XK03")
@@ -1694,9 +1722,16 @@ Public Class Credits_Link
         Session.FindByNameEx("PA_VARI", 32).Text = "/LINKING"
         Session.FindById("wnd[0]/tbar[1]/btn[8]").Press()
 
+        PBk_I = Session.FindByText("PBk").ID.ToString
+        PBk_I = PBk_I.Substring(PBk_I.LastIndexOf("[") + 1, PBk_I.LastIndexOf(",") - PBk_I.LastIndexOf("[") - 1)
+
+        Amt_I = Session.FindByText("Amount in doc. curr.").ID.ToString
+        Amt_I = Amt_I.Substring(Amt_I.LastIndexOf("[") + 1, Amt_I.LastIndexOf(",") - Amt_I.LastIndexOf("[") - 1)
+
         For Each Invoice As String In Invoices
             CI = GUI_Find(Session, Invoice)
-            If Session.FindById("wnd[0]/usr/lbl[65,%]".Replace("%", CI)).Text <> "" Then
+            BkFlag = Session.FindById("wnd[0]/usr/lbl[*,%]".Replace("*", PBk_I).Replace("%", CI)).Text   'L6P - L7P label not same name
+            If BkFlag <> "" And BkFlag <> "C" Then
                 MsgBox("Invoice " & Invoice & " is currently blocked! Process Aborted.", MsgBoxStyle.Critical, "Invoices Verification")
                 Session.Close()
                 Exit Sub
@@ -1705,31 +1740,33 @@ Public Class Credits_Link
 
         For Each Credit As String In Credits
             CI = GUI_Find(Session, Credit)
-            If Session.FindById("wnd[0]/usr/lbl[65,%]".Replace("%", CI)).Text <> "" Then
+            BkFlag = Session.FindById("wnd[0]/usr/lbl[*,%]".Replace("*", PBk_I).Replace("%", CI)).Text
+            If BkFlag <> "" And BkFlag <> "C" Then
                 MsgBox("Credit " & Credit & " is currently blocked! Process Aborted.", MsgBoxStyle.Critical, "Credits Verification")
                 Session.Close()
                 Exit Sub
             End If
         Next
 
+        Invoice_Link = Invoices(0)
         If Invoices.Count > 1 Then
-            Dim TA As Integer
-            Dim AG As Integer = 10000
-            For Each Invoice As String In Invoices
-                CI = GUI_Find(Session, Invoice)
-                TA = CInt(Session.FindById("wnd[0]/usr/lbl[42,%]".Replace("%", CI)).Text)
-                If TA < 0 Then TA = TA * -1
-                If TA < AG Then
-                    Invoice_Link = Invoice
-                    AG = TA
-                End If
-            Next
+            'Dim TA As Integer
+            'Dim AG As Integer = 10000
+            'For Each Invoice As String In Invoices
+            '    CI = GUI_Find(Session, Invoice)
+            '    TA = CInt(Session.FindById("wnd[0]/usr/lbl[*,%]".Replace("*", Amt_I).Replace("%", CI)).Text)
+            '    If TA < 0 Then TA = TA * -1
+            '    If TA < AG Then
+            '        Invoice_Link = Invoice
+            '        AG = TA
+            '    End If
+            'Next
             For Each Invoice As String In Invoices
                 If Invoice <> Invoice_Link Then
                     CI = GUI_Find(Session, Invoice)
                     Session.SendVKey(2)
                     Session.FindById("wnd[0]/tbar[1]/btn[13]").Press()
-                    'Session.FindByNameEx("BSEG-ZBFIX", 32).Text = Fixed(PTerm)
+                    If Session.FindByNameEx("BSEG-ZBFIX", 32).changeable Then Session.FindByNameEx("BSEG-ZBFIX", 32).Text = Fixed
                     Session.FindByNameEx("BSEG-REBZG", 31).Text = Invoice_Link
                     Session.FindByNameEx("BSEG-SGTXT", 32).Text = Session.FindByNameEx("BSEG-SGTXT", 32).Text & " / 02DB"
                     Session.SendVKey(0)
@@ -1737,20 +1774,61 @@ Public Class Credits_Link
                     Session.SendVKey(0)
                 End If
             Next
-        Else
-            Invoice_Link = Invoices(0)
         End If
 
         For Each Credit As String In Credits
             CI = GUI_Find(Session, Credit)
             Session.SendVKey(2)
             Session.FindById("wnd[0]/tbar[1]/btn[13]").Press()
-            'Session.FindByNameEx("BSEG-ZBFIX", 32).Text = Fixed(PTerm)
+            If Session.FindByNameEx("BSEG-ZBFIX", 32).changeable Then Session.FindByNameEx("BSEG-ZBFIX", 32).Text = Fixed
             Session.FindByNameEx("BSEG-REBZG", 31).Text = Invoice_Link
             Session.FindByNameEx("BSEG-SGTXT", 32).Text = Session.FindByNameEx("BSEG-SGTXT", 32).Text & " /02DB"
             Session.SendVKey(0)
             Session.FindById("wnd[0]/tbar[0]/btn[11]").Press() '**** --> Save <--- *****
             Session.SendVKey(0)
+        Next
+
+        Session.Close()
+
+    End Sub
+
+    Private Sub Togle_Block(Documents As List(Of String), Vendor As String, LE As String, Fixed As String)
+
+        Dim Session As New SAPGUI(Box, User, Password)
+        Dim BkFlag As String = Nothing
+
+        If Not Session.LoggedIn Then
+            MsgBox("Failed to connect to SAP - " & Box, MsgBoxStyle.Critical, "Block Script")
+            Exit Sub
+        End If
+
+        Session.StartTransaction("FBL1")
+        Session.FindByNameEx("KD_LIFNR-LOW", 32).Text = Vendor
+        Session.FindByNameEx("KD_BUKRS-LOW", 32).Text = LE
+        Session.FindByNameEx("PA_VARI", 32).Text = "/LINKING"
+        Session.FindById("wnd[0]/tbar[1]/btn[8]").Press()
+
+        PBk_I = Session.FindByText("PBk").ID.ToString
+        PBk_I = PBk_I.Substring(PBk_I.LastIndexOf("[") + 1, PBk_I.LastIndexOf(",") - PBk_I.LastIndexOf("[") - 1)
+
+        For Each Document As String In Documents
+            CI = GUI_Find(Session, Document)
+            BkFlag = Session.FindById("wnd[0]/usr/lbl[*,%]".Replace("*", PBk_I).Replace("%", CI)).Text
+            If BkFlag <> "" And BkFlag <> "C" Then
+                MsgBox("Block type " & BkFlag & " on Document " & Document & " is not allowed be modified.", MsgBoxStyle.Critical, "Block Script")
+            Else
+                Session.SendVKey(2)
+                Session.FindById("wnd[0]/tbar[1]/btn[13]").Press()
+                If Session.FindByNameEx("BSEG-ZLSPR", 32).Text <> "" Then
+                    Session.FindByNameEx("BSEG-ZLSPR", 32).Text = ""
+                Else
+                    Session.FindByNameEx("BSEG-ZLSPR", 32).Text = "C"
+                    Session.FindByNameEx("BSEG-SGTXT", 32).Text = Session.FindByNameEx("BSEG-SGTXT", 32).Text & " Block Request by: " & Fixed
+                End If
+                Session.SendVKey(0)
+                Session.FindById("wnd[0]/tbar[0]/btn[11]").Press() '**** --> Save <--- *****
+                Session.SendVKey(0)
+            End If
         Next
 
         Session.Close()
@@ -1768,20 +1846,30 @@ Public Class Credits_Link
         If Session.FindById("wnd[2]").text = "Information" Then
             Exit Function
         End If
-        Session.FindById("wnd[2]/usr").horizontalScrollbar.position = 127
-        If Session.FindById("wnd[2]/usr/lbl[7,2]") Is Nothing OrElse Session.FindById("wnd[2]/usr/lbl[7,2]").Text <> Reference Then
-            Exit Function
-        End If
-        Session.FindById("wnd[2]/usr/lbl[7,2]").setFocus()
+
+        Dim I As Integer = 2
+        Dim FI As Integer = 0
+        Do While Not Session.FindById("wnd[2]/usr/lbl[9," & I & "]") Is Nothing
+            If Session.FindById("wnd[2]/usr/lbl[9," & I & "]").Text = Reference Then
+                FI = I
+                Exit Do
+            End If
+            I += 1
+        Loop
+
+        If FI = 0 Then Exit Function
+
+        Session.FindById("wnd[2]/usr/lbl[9," & FI & "]").setFocus()
         Session.FindById("wnd[2]").sendVKey(2)
 
+        'Session.FindById("wnd[2]/usr").horizontalScrollbar.position = 127
+        'If Session.FindById("wnd[2]/usr/lbl[7,2]") Is Nothing OrElse Session.FindById("wnd[2]/usr/lbl[7,2]").Text <> Reference Then
+        '    Exit Function
+        'End If
+        'Session.FindById("wnd[2]/usr/lbl[7,2]").setFocus()
+        'Session.FindById("wnd[2]").sendVKey(2)
+
         GUI_Find = Session.ActiveWindow.SystemFocus.ID.Substring(Session.ActiveWindow.SystemFocus.ID.IndexOf(",") + 1).TrimEnd("]")
-
-    End Function
-
-    Private Function Fixed(PTerm As String) As String
-
-        Fixed = ""
 
     End Function
 
