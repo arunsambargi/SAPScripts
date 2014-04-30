@@ -42,9 +42,9 @@
     <NoWarn>42016,41999,42017,42018,42019,42032,42036,42020,42021,42022,42353,42354,42355</NoWarn>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="Common Functions, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
+    <Reference Include="Common Functions, Version=1.0.0.1, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\Common Functions\Common Functions\bin\Debug\Common Functions.dll</HintPath>
+      <HintPath>..\..\Common-Functions\Common Functions\bin\Debug\Common Functions.dll</HintPath>
     </Reference>
     <Reference Include="EPPlus">
       <HintPath>..\..\..\Projects\EPPlus\Binaries\EPPlus.dll</HintPath>

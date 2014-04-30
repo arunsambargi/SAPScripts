@@ -7,6 +7,7 @@ Public Class SAPGUI
     Private Connection As Object = Nothing
     Private Session As Object = Nothing
     Private Servers As New DataTable
+    Private NPass As String = Nothing
 
     Private LI As Boolean = False
 
@@ -45,6 +46,14 @@ Public Class SAPGUI
 
     End Property
 
+    Public ReadOnly Property NewPassword As String
+
+        Get
+            NewPassword = NPass
+        End Get
+
+    End Property
+
     Public Sub New(ByVal Box As String, Optional ByVal User As String = Nothing, Optional ByVal Password As String = Nothing, Optional ByRef NewPass As String = Nothing)
 
         Try
@@ -67,6 +76,7 @@ Public Class SAPGUI
                         Session.findById("wnd[1]/usr/pwdRSYST-NCODE").Text = NewPass
                         Session.findById("wnd[1]/usr/pwdRSYST-NCOD2").Text = NewPass
                         Session.findById("wnd[1]/tbar[0]/btn[0]").Press()
+                        NPass = NewPass
                     Else
                         Session.findById("wnd[1]/tbar[0]/btn[12]").Press()
                         Exit Sub
@@ -83,7 +93,7 @@ Public Class SAPGUI
                         Session.findById("wnd[1]/usr/radMULTI_LOGON_OPT1").Select()
                     End If
                 End If
-                Session.findById("wnd[1]").sendVKey(0)
+                If Not Session.findById("wnd[1]", False) Is Nothing Then Session.findById("wnd[1]").sendVKey(0)
                 If Session.ActiveWindow.Text = "SAP" Then
                     Session.findById("wnd[1]/tbar[0]/btn[12]").Press()
                     Exit Sub
@@ -1899,5 +1909,112 @@ Public Class AP_Trade
         Session = New SAPGUI(Box)
 
     End Sub
+
+    Public Function Get_Data(LE() As String, Vendors() As String) As DataTable
+
+        Get_Data = Nothing
+        If Not Session.LoggedIn Then
+            Exit Function
+        End If
+
+        Session.StartTransaction("F.98")
+        Session.FindById("wnd[0]/usr/lbl[5,6]").setFocus()
+        Session.FindById("wnd[0]").sendVKey(2)
+        Session.FindById("wnd[0]/usr/lbl[12,15]").setFocus()
+        Session.FindById("wnd[0]").sendVKey(2)
+
+        Session.FindByNameEx("P_REGION", 32).Text = "LA"
+
+        Session.ArrayToClipboard(LE)
+        Session.FindByNameEx("%_S_BUKRS_%_APP_%-VALU_PUSH", 40).Press()
+        Session.FindById("wnd[1]/tbar[0]/btn[16]").Press()
+        Session.FindById("wnd[1]/tbar[0]/btn[24]").Press()
+        Session.FindById("wnd[1]/tbar[0]/btn[8]").Press()
+
+        Session.FindByNameEx("%_S_KTOKK_%_APP_%-VALU_PUSH", 40).Press()
+        Session.FindById("wnd[1]/tbar[0]/btn[16]").Press()
+        Session.FindById("wnd[1]/tbar[0]/btn[8]").Press()
+
+        Session.ArrayToClipboard(Vendors)
+        Session.FindByNameEx("%_S_LIFNR_%_APP_%-VALU_PUSH", 40).Press()
+        Session.FindById("wnd[1]/tbar[0]/btn[16]").Press()
+        Session.FindById("wnd[1]/tbar[0]/btn[24]").Press()
+        Session.FindById("wnd[1]/tbar[0]/btn[8]").Press()
+
+        Session.FindById("wnd[0]/tbar[1]/btn[8]").Press()
+
+        Session.FindById("wnd[0]/tbar[0]/okcd").text = "%pc"
+        Session.FindById("wnd[0]").sendVKey(0)
+
+        Session.FindById("wnd[1]/usr/subSUBSCREEN_STEPLOOP:SAPLSPO5:0150/sub:SAPLSPO5:0150/radSPOPLI-SELFLAG[1,0]").Selected = True
+        Session.FindById("wnd[1]/tbar[0]/btn[0]").Press()
+
+        Session.FindById("wnd[1]/usr/ctxtDY_PATH").text = My.Computer.FileSystem.SpecialDirectories.Temp & "\"
+        Session.FindById("wnd[1]/usr/ctxtDY_FILENAME").text = "APTrade.txt"
+        Session.FindById("wnd[1]/tbar[0]/btn[11]").Press()
+
+        Session.Close()
+
+        Get_Data = TD_TextFile_Data(My.Computer.FileSystem.SpecialDirectories.Temp & "\APTrade.txt")
+        If Not Get_Data.Columns("Column1") Is Nothing Then
+            Get_Data.Columns.Remove("Column1")
+        End If
+
+    End Function
+
+    Private Function TD_TextFile_Data(ByVal Path As String, Optional ByVal SkipTopLines As Integer = 0, Optional ByVal NoHeaders As Boolean = False) As Object
+
+        TD_TextFile_Data = Nothing
+        Try
+            Dim F As New Microsoft.VisualBasic.FileIO.TextFieldParser(Path)
+            F.TextFieldType = FileIO.FieldType.Delimited
+            F.SetDelimiters(Chr(9))
+
+            Dim R As String() = Nothing
+            Dim D As New DataTable
+            Dim CI As Integer
+            Dim I As Integer = 1
+
+            Do While Not F.EndOfData And I <= SkipTopLines
+                R = F.ReadFields
+                I += 1
+            Loop
+
+            If NoHeaders Then
+                For I = 1 To R.Count
+                    D.Columns.Add("Field" & I, Type.GetType("System.String"))
+                Next
+            Else
+                If Not F.EndOfData Then
+                    R = F.ReadFields
+                    If R.Length > 0 Then
+                        CI = 1
+                        For Each CN As String In R
+                            Do While Not D.Columns(CN) Is Nothing
+                                CN = CN & CI
+                                CI += 1
+                            Loop
+                            D.Columns.Add(CN, Type.GetType("System.String"))
+                        Next
+                    End If
+                End If
+            End If
+
+            While Not F.EndOfData
+                Try
+                    R = F.ReadFields
+                    D.LoadDataRow(R, True)
+                Catch ex As Exception
+                End Try
+            End While
+
+            If D.Rows.Count > 0 Then TD_TextFile_Data = D
+            F.Close()
+
+        Catch ex As Exception
+            MsgBox(ex.Message)
+        End Try
+
+    End Function
 
 End Class

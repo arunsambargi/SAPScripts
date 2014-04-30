@@ -1,19 +1,16 @@
 ﻿Imports SAPScripts
-Imports Common_Functions
 Imports OfficeOpenXml
+Imports Common_Functions
 
 Module Module1
 
+    Dim SQL As New SQL_Server("MXL0221QY0\SQLEXPRESS", "developer", "procter", "PSSD_LBI")
+    Dim MF As New MyFunctions_Class
 
     Sub Main()
 
-        Dim S As New Credits_ST100_Scripting("L6P", "CA5482", "cezane4")
-        Dim I As New List(Of String)
-        Dim C As New List(Of String)
-        I.Add("4610004514")
-        I.Add("6540152539")
-        C.Add("4610005514")
-        S.Execute(1, I, "0015000877", "501", "", C, "4610004514")
+        Dim Session As New SAPGUI("L7P", "CA5482", "control1", "control2")
+
 
     End Sub
 
