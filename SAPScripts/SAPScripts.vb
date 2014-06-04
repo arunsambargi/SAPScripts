@@ -8,6 +8,7 @@ Public Class SAPGUI
     Private Session As Object = Nothing
     Private Servers As New DataTable
     Private NPass As String = Nothing
+    Private Sts As String = Nothing
 
     Private LI As Boolean = False
 
@@ -50,6 +51,14 @@ Public Class SAPGUI
 
         Get
             NewPassword = NPass
+        End Get
+
+    End Property
+
+    Public ReadOnly Property Status As String
+
+        Get
+            Status = Sts
         End Get
 
     End Property
@@ -103,7 +112,7 @@ Public Class SAPGUI
                 LI = True
             End If
         Catch ex As Exception
-
+            Sts = ex.Message
         End Try
 
     End Sub
