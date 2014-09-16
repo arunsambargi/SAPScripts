@@ -63,7 +63,8 @@ Public Class SAPGUI
 
     End Property
 
-    Public Sub New(ByVal Box As String, Optional ByVal User As String = Nothing, Optional ByVal Password As String = Nothing, Optional ByRef NewPass As String = Nothing)
+    Public Sub New(ByVal Box As String, Optional ByVal User As String = Nothing, Optional ByVal Password As String = Nothing,
+                   Optional ByRef NewPass As String = Nothing, Optional Client As String = Nothing)
 
         Try
             Enable_GUI_Theme()
@@ -74,11 +75,16 @@ Public Class SAPGUI
                 Connection = SAPApp.OpenConnectionByConnectionString(GetConnString(Box))
             End If
             Session = Connection.Children(0)
-            If Not User Is Nothing And Not Password Is Nothing Then
-                Session.findById("wnd[0]/usr/txtRSYST-BNAME").Text = User
-                Session.findById("wnd[0]/usr/pwdRSYST-BCODE").Text = Password
-                Session.findById("wnd[0]").sendVKey(0)
+            If Not User Is Nothing Then
+                If Not Session.findById("wnd[0]/usr/txtRSYST-BNAME", False) Is Nothing Then Session.findById("wnd[0]/usr/txtRSYST-BNAME").Text = User
             End If
+            If Not Password Is Nothing Then
+                If Not Session.findById("wnd[0]/usr/pwdRSYST-BCODE", False) Is Nothing Then Session.findById("wnd[0]/usr/pwdRSYST-BCODE").Text = Password
+            End If
+            If Not Client Is Nothing Then
+                If Not Session.findById("wnd[0]/usr/txtRSYST-MANDT", False) Is Nothing Then Session.findById("wnd[0]/usr/txtRSYST-MANDT").Text = Client
+            End If
+            Session.findById("wnd[0]").sendVKey(0)
             Do While Not Session.findById("wnd[1]", False) Is Nothing
                 If Not Session.findById("wnd[1]/usr/pwdRSYST-NCODE", False) Is Nothing Then
                     If Not NewPass Is Nothing Then
@@ -170,7 +176,7 @@ Public Class SAPGUI
         FindByText = Nothing
         Try
             For Each Children As Object In Session.findbyid("wnd[0]/usr/").children
-                If Children.Text = Search Then
+                If Children.Text.ToString.Trim = Search.Trim Then
                     FindByText = Children
                     Exit For
                 End If
@@ -1690,13 +1696,19 @@ Public Class Credits_ST100_Scripting
     Private Box As String
     Private User As String
     Private Password As String
+    Private Client As String = Nothing
     Private CI As String
     Private PBk_I As String
     Private Amt_I As String
 
     Public Sub New(_Box As String, _User As String, _Password As String)
 
-        Box = _Box
+        If _Box.Length > 3 Then
+            Client = _Box.Substring(3, 3)
+            Box = _Box.Substring(0, 3)
+        Else
+            Box = _Box
+        End If
         User = _User
         Password = _Password
 
@@ -1715,7 +1727,7 @@ Public Class Credits_ST100_Scripting
 
     Private Sub Link(Invoices As List(Of String), Credits As List(Of String), Vendor As String, LE As String, Fixed As String, Main As String)
 
-        Dim Session As New SAPGUI(Box, User, Password)
+        Dim Session As New SAPGUI(Box, User, Password, , Client)
         Dim Invoice_Link As String = Nothing
         Dim BkFlag As String = Nothing
 
@@ -1743,10 +1755,32 @@ Public Class Credits_ST100_Scripting
         Session.FindByNameEx("PA_VARI", 32).Text = "/LINKING"
         Session.FindById("wnd[0]/tbar[1]/btn[8]").Press()
 
-        PBk_I = Session.FindByText("PBk").ID.ToString
+        PBk_I = Nothing
+        If Not Session.FindByText("PBk") Is Nothing Then
+            PBk_I = Session.FindByText("PBk").ID.ToString
+        End If
+        If Not Session.FindByText("PB") Is Nothing Then
+            PBk_I = Session.FindByText("PB").ID.ToString
+        End If
+        If PBk_I Is Nothing Then
+            MsgBox("Couldn't find the Payment Block column! Process Aborted", MsgBoxStyle.Critical, "Link Script")
+            Session.Close()
+            Exit Sub
+        End If
         PBk_I = PBk_I.Substring(PBk_I.LastIndexOf("[") + 1, PBk_I.LastIndexOf(",") - PBk_I.LastIndexOf("[") - 1)
 
-        Amt_I = Session.FindByText("Amount in doc. curr.").ID.ToString
+        Amt_I = Nothing
+        If Not Session.FindByText("Amount in doc. curr.") Is Nothing Then
+            Amt_I = Session.FindByText("Amount in doc. curr.").ID.ToString
+        End If
+        If Not Session.FindByText("Amount in DC") Is Nothing Then
+            Amt_I = Session.FindByText("Amount in DC").ID.ToString
+        End If
+        If Amt_I Is Nothing Then
+            MsgBox("Couldn't find the Amount In DC column! Process Aborted", MsgBoxStyle.Critical, "Link Script")
+            Session.Close()
+            Exit Sub
+        End If
         Amt_I = Amt_I.Substring(Amt_I.LastIndexOf("[") + 1, Amt_I.LastIndexOf(",") - Amt_I.LastIndexOf("[") - 1)
 
         For Each Invoice As String In Invoices
@@ -1816,7 +1850,7 @@ Public Class Credits_ST100_Scripting
 
     Private Sub Togle_Block(Documents As List(Of String), Vendor As String, LE As String, Fixed As String)
 
-        Dim Session As New SAPGUI(Box, User, Password)
+        Dim Session As New SAPGUI(Box, User, Password, , Client)
         Dim BkFlag As String = Nothing
 
         If Not Session.LoggedIn Then
@@ -1830,14 +1864,25 @@ Public Class Credits_ST100_Scripting
         Session.FindByNameEx("PA_VARI", 32).Text = "/LINKING"
         Session.FindById("wnd[0]/tbar[1]/btn[8]").Press()
 
-        PBk_I = Session.FindByText("PBk").ID.ToString
+        PBk_I = Nothing
+        If Not Session.FindByText("PBk") Is Nothing Then
+            PBk_I = Session.FindByText("PBk").ID.ToString
+        End If
+        If Not Session.FindByText("PB") Is Nothing Then
+            PBk_I = Session.FindByText("PB").ID.ToString
+        End If
+        If PBk_I Is Nothing Then
+            MsgBox("Couldn't find the Payment Block column! Process Aborted", MsgBoxStyle.Critical, "Block Script")
+            Session.Close()
+            Exit Sub
+        End If
         PBk_I = PBk_I.Substring(PBk_I.LastIndexOf("[") + 1, PBk_I.LastIndexOf(",") - PBk_I.LastIndexOf("[") - 1)
 
         For Each Document As String In Documents
             CI = GUI_Find(Session, Document)
             BkFlag = Session.FindById("wnd[0]/usr/lbl[*,%]".Replace("*", PBk_I).Replace("%", CI)).Text
             If BkFlag <> "" And BkFlag <> "C" Then
-                MsgBox("Block type " & BkFlag & " on Document " & Document & " is not allowed be modified.", MsgBoxStyle.Critical, "Block Script")
+                MsgBox("Block type " & BkFlag & " on Document " & Document & " is not allowed to be modified.", MsgBoxStyle.Critical, "Block Script")
             Else
                 Session.SendVKey(2)
                 Session.FindById("wnd[0]/tbar[1]/btn[13]").Press()
@@ -1867,6 +1912,7 @@ Public Class Credits_ST100_Scripting
         Session.FindById("wnd[1]/usr/chkSCAN_STRING-START").selected = False
         Session.FindById("wnd[1]/usr/txtRSYSF-STRING").text = Reference
         Session.FindById("wnd[1]/tbar[0]/btn[0]").press()
+
         If Session.FindById("wnd[2]").text = "Information" Then
             Session.FindById("wnd[2]/tbar[0]/btn[0]").press()
             Session.FindById("wnd[1]/tbar[0]/btn[12]").press()
@@ -1875,8 +1921,14 @@ Public Class Credits_ST100_Scripting
 
         Dim I As Integer = 2
         Dim FI As Integer = 0
-        Do While Not Session.FindById("wnd[2]/usr/lbl[9," & I & "]") Is Nothing
-            If Session.FindById("wnd[2]/usr/lbl[9," & I & "]").Text = Reference Then
+
+        Dim DLI As String = "7"
+        If Session.FindById("wnd[2]/usr/lbl[" & DLI & "," & I & "]") Is Nothing Then
+            DLI = "9"
+        End If
+
+        Do While Not Session.FindById("wnd[2]/usr/lbl[" & DLI & "," & I & "]") Is Nothing
+            If Session.FindById("wnd[2]/usr/lbl[" & DLI & "," & I & "]").Text = Reference Then
                 FI = I
                 Exit Do
             End If
@@ -1885,7 +1937,7 @@ Public Class Credits_ST100_Scripting
 
         If FI = 0 Then Exit Function
 
-        Session.FindById("wnd[2]/usr/lbl[9," & FI & "]").setFocus()
+        Session.FindById("wnd[2]/usr/lbl[" & DLI & "," & I & "]").setFocus()
         Session.FindById("wnd[2]").sendVKey(2)
 
         'Session.FindById("wnd[2]/usr").horizontalScrollbar.position = 127

@@ -133,25 +133,15 @@
     <SNC_PN>p:sap/n6p-app3@NA.PG.COM</SNC_PN>
   </Servers>
   <Servers>
-    <Box>ANP_410</Box>
+    <Box>ANP</Box>
     <Host>ANP</Host>
     <Number>0</Number>
-    <Client>410</Client>
+    <Client></Client>
     <MessageServer>ANP.ap.pg.com</MessageServer>
     <LogonGroup>ANP_RFC</LogonGroup>
     <UseLoadBalancing>true</UseLoadBalancing>
     <SNC_PN>p:sap/anp-app5@NA.PG.COM</SNC_PN>
   </Servers>  
-  <Servers>
-    <Box>ANP_430</Box>
-    <Host>ANP</Host>
-    <Number>0</Number>
-    <Client>430</Client>
-    <MessageServer>ANP.ap.pg.com</MessageServer>
-    <LogonGroup>ANP_RFC</LogonGroup>
-    <UseLoadBalancing>true</UseLoadBalancing>
-    <SNC_PN>p:sap/anp-app5@NA.PG.COM</SNC_PN>
-  </Servers>    
   <Servers>
     <Box>G11</Box>
     <Host>G11</Host>
