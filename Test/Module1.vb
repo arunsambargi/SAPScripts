@@ -1,15 +1,11 @@
 ﻿Imports SAPScripts
-Imports OfficeOpenXml
-Imports Common_Functions
 
 Module Module1
 
-    Dim SQL As New SQL_Server("MXL0221QY0\SQLEXPRESS", "developer", "procter", "PSSD_LBI")
-    Dim MF As New MyFunctions_Class
-
     Sub Main()
 
-        Dim Session As New SAPGUI("ANP", "CA5482", "tsuntzu1", , "430")
+        Dim Session As New SAPGUI("N6P")
+        Session.DisplayPO("4503401042")
 
         'Dim C As New List(Of String)
         'Dim I As New List(Of String)

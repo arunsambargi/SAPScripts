@@ -1924,7 +1924,10 @@ Public Class Credits_ST100_Scripting
 
         Dim DLI As String = "7"
         If Session.FindById("wnd[2]/usr/lbl[" & DLI & "," & I & "]") Is Nothing Then
-            DLI = "9"
+            DLI = "8"
+            If Session.FindById("wnd[2]/usr/lbl[" & DLI & "," & I & "]") Is Nothing Then
+                DLI = "9"
+            End If
         End If
 
         Do While Not Session.FindById("wnd[2]/usr/lbl[" & DLI & "," & I & "]") Is Nothing
