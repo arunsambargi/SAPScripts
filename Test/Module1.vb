@@ -4,8 +4,7 @@ Module Module1
 
     Sub Main()
 
-        Dim Session As New SAPGUI("N6P")
-        Session.DisplayPO("4503401042")
+        Dim Session As New SAPGUI("A7P", "CA5482", "xiangkan2", , "410")
 
         'Dim C As New List(Of String)
         'Dim I As New List(Of String)
